@@ -1,0 +1,347 @@
+package com.todolist.taskreminderapp;
+
+import android.app.AlertDialog;
+import android.app.Notification;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
+import android.content.Context;
+import android.content.DialogInterface;
+import android.content.Intent;
+import android.content.SharedPreferences;
+import android.graphics.Color;
+import android.graphics.PorterDuff;
+import android.graphics.drawable.Drawable;
+import android.net.Uri;
+import android.os.Bundle;
+import android.support.design.widget.FloatingActionButton;
+import android.support.design.widget.Snackbar;
+import android.support.v4.app.NotificationCompat;
+import android.support.v4.app.ShareCompat;
+import android.support.v4.content.ContextCompat;
+import android.util.Log;
+import android.view.View;
+import android.support.v4.view.GravityCompat;
+import android.support.v7.app.ActionBarDrawerToggle;
+import android.view.MenuItem;
+import android.support.design.widget.NavigationView;
+import android.support.v4.widget.DrawerLayout;
+
+import android.support.v7.app.AppCompatActivity;
+import android.support.v7.widget.Toolbar;
+import android.view.Menu;
+import android.widget.ArrayAdapter;
+import android.widget.EditText;
+import android.widget.ListView;
+import android.widget.TextView;
+import android.widget.Toast;
+
+import java.util.ArrayList;
+
+import smartdevelop.ir.eram.showcaseviewlib.GuideView;
+import smartdevelop.ir.eram.showcaseviewlib.config.DismissType;
+import smartdevelop.ir.eram.showcaseviewlib.config.Gravity;
+
+public class MainActivity extends AppCompatActivity
+        implements NavigationView.OnNavigationItemSelectedListener {
+    DbHelper dbHelper;
+    ArrayAdapter<String> mAdapter;
+    ListView lstTask;
+
+    View view1,view2
+            ,view3,view4,view5;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+        Toolbar toolbar = findViewById(R.id.toolbar);
+        setSupportActionBar(toolbar);
+
+
+        view1 = findViewById(R.id.fab);
+
+        doFirstRun();
+        FloatingActionButton fab = findViewById(R.id.fab);
+        fab.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+              /*  Snackbar.make(view, "Adding You Tasks", Snackbar.LENGTH_LONG)
+                        .setAction("Action", null).show();*/
+
+                final EditText taskEditText = new EditText(MainActivity.this);
+                AlertDialog dialog = new AlertDialog.Builder(MainActivity.this)
+                        .setTitle("Add New Task")
+                        .setMessage("What do you want to do next?")
+                        .setView(taskEditText)
+                        .setPositiveButton("Add", new DialogInterface.OnClickListener() {
+                            @Override
+                            public void onClick(DialogInterface dialog, int which) {
+                                String task = String.valueOf(taskEditText.getText());
+                                dbHelper.insertNewTask(task);
+                                loadTaskList();
+                            }
+                        })
+                        .setNegativeButton("Cancel",null)
+                        .create();
+                dialog.show();
+            }
+        });
+        DrawerLayout drawer = findViewById(R.id.drawer_layout);
+        NavigationView navigationView = findViewById(R.id.nav_view);
+        ActionBarDrawerToggle toggle = new ActionBarDrawerToggle(
+                this, drawer, toolbar, R.string.navigation_drawer_open, R.string.navigation_drawer_close);
+        drawer.addDrawerListener(toggle);
+        toggle.syncState();
+        navigationView.setNavigationItemSelectedListener(this);
+        dbHelper = new DbHelper(this);
+
+        lstTask = (ListView)findViewById(R.id.lstTask);
+
+        loadTaskList();
+
+    }
+
+    private void loadTaskList() {
+        ArrayList<String> taskList = dbHelper.getTaskList();
+        if(mAdapter==null){
+            mAdapter = new ArrayAdapter<String>(this,R.layout.row,R.id.task_title,taskList);
+            lstTask.setAdapter(mAdapter);
+            doFseRun();
+
+
+        }
+        else{
+            mAdapter.clear();
+            mAdapter.addAll(taskList);
+            mAdapter.notifyDataSetChanged();
+        }
+    }
+
+    private void notifynotif() {
+
+        int requestID = (int) System.currentTimeMillis();
+
+        PendingIntent contentIntent = PendingIntent.getActivity(getBaseContext(),
+                0,new Intent(), PendingIntent.FLAG_ONE_SHOT);
+        NotificationCompat.Builder buildernotif = new NotificationCompat.Builder(getBaseContext());
+
+        Intent pauseIntent = new Intent(this, MainActivity.class);
+        pauseIntent.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
+        pauseIntent.putExtra("pause", true);
+        PendingIntent pausePendingIntent = PendingIntent.getActivity(this, requestID, pauseIntent, PendingIntent.FLAG_UPDATE_CURRENT);
+        buildernotif.setAutoCancel(true);
+
+        Intent cancelIntent = new Intent(this, MainActivity.class);
+        buildernotif.setAutoCancel(true);
+
+        buildernotif.setAutoCancel(true)
+                .setDefaults(Notification.DEFAULT_LIGHTS| Notification.DEFAULT_SOUND)
+                .setWhen(System.currentTimeMillis())
+                .setSmallIcon(R.drawable.ic_notifications_none_black_24dp)
+                .setContentTitle("Welcome !")
+                .setColor(ContextCompat.getColor(getApplicationContext(), R.color.colorPrimary))
+
+                /*.addAction(R.drawable.ic_action_boom, "Action!", someOtherPendingIntent)*/
+                .setContentText("Lets Create Your First Task ")
+                .setContentIntent(pausePendingIntent);
+
+//Then add the action to your notification
+
+        NotificationManager manager = (NotificationManager)getBaseContext().getSystemService(Context.NOTIFICATION_SERVICE);
+        manager.notify(1,buildernotif.build());
+    }
+
+    @Override
+    public void onBackPressed() {
+        DrawerLayout drawer = findViewById(R.id.drawer_layout);
+        if (drawer.isDrawerOpen(GravityCompat.START)) {
+            drawer.closeDrawer(GravityCompat.START);
+        } else {
+            super.onBackPressed();
+        }
+    }
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        // Inflate the menu; this adds items to the action bar if it is present.
+        getMenuInflater().inflate(R.menu.main, menu);
+        Drawable icon = menu.getItem(0).getIcon();
+        icon.mutate();
+        icon.setColorFilter(getResources().getColor(android.R.color.white), PorterDuff.Mode.SRC_IN);
+
+        return super.onCreateOptionsMenu(menu);
+
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        switch (item.getItemId()){
+            case R.id.action_add_task:
+                final EditText taskEditText = new EditText(this);
+                AlertDialog dialog = new AlertDialog.Builder(this)
+                        .setTitle("Add New Task")
+                        .setMessage("What do you want to do next?")
+                        .setView(taskEditText)
+                        .setPositiveButton("Add", new DialogInterface.OnClickListener() {
+                            @Override
+                            public void onClick(DialogInterface dialog, int which) {
+                                String task = String.valueOf(taskEditText.getText());
+                                dbHelper.insertNewTask(task);
+                                loadTaskList();
+                            }
+                        })
+                        .setNegativeButton("Cancel",null)
+                        .create();
+                dialog.show();
+                return true;
+
+            case R.id.action_settings:
+                Intent startIntent = new Intent(MainActivity.this, SettingsActivity.class);
+                startActivity(startIntent);
+                return true;
+        }
+        return super.onOptionsItemSelected(item);
+    }
+
+    public void deleteTask(View view){
+        View parent = (View)view.getParent();
+        TextView taskTextView = (TextView)parent.findViewById(R.id.task_title);
+        Log.e("String", (String) taskTextView.getText());
+        String task = String.valueOf(taskTextView.getText());
+        dbHelper.deleteTask(task);
+        loadTaskList();
+    }
+
+    @SuppressWarnings("StatementWithEmptyBody")
+    @Override
+    public boolean onNavigationItemSelected(MenuItem item) {
+        // Handle navigation view item clicks here.
+        int id = item.getItemId();
+
+        if (id == R.id.nav_ideas) {
+            Intent startIntent = new Intent(MainActivity.this, IdeasActivity.class);
+            startActivity(startIntent);
+            // Handle the camera action
+        } else if (id == R.id.nav_fin) {
+
+            Intent startIntent = new Intent(MainActivity.this, FinActivity.class);
+            startActivity(startIntent);
+
+        } else if (id == R.id.nav_extra) {
+
+            Intent startIntent = new Intent(MainActivity.this, ExtraActivity.class);
+            startActivity(startIntent);
+
+        } else if (id == R.id.nav_about) {
+
+            Intent startIntent = new Intent(MainActivity.this, AboutUs.class);
+            startActivity(startIntent);
+
+        } else if (id == R.id.nav_share) {
+
+            Toast.makeText(MainActivity.this, "Sharing App..", Toast.LENGTH_SHORT).show();
+
+
+            ShareCompat.IntentBuilder.from(MainActivity.this)
+                    .setType("text/plain")
+                    .setChooserTitle("Share URL")
+                    .setText("Hey, Download This Awesome TODO List Maker App - "+"https://play.google.com/store/apps/details?id=com.todolist.taskreminderapp")
+                    .startChooser();
+
+        } else if (id == R.id.nav_con) {
+
+            Toast toast = Toast.makeText(MainActivity.this, "Mail Us For More Detail", Toast.LENGTH_LONG);
+            View view1 = toast.getView();
+
+            view1.getBackground().setColorFilter((Color.parseColor("#FF104162")), PorterDuff.Mode.SRC_IN);
+
+
+            TextView text = view1.findViewById(android.R.id.message);
+            text.setTextColor(Color.WHITE);
+
+            toast.show();
+
+            Intent send = new Intent(Intent.ACTION_SENDTO);
+            String uriText = "mailto:" + Uri.encode("thexenonstudio@gmail.com") +
+                    "?subject=" + Uri.encode("TODO List App") +
+                    "&body=" + Uri.encode("Hello, Type Your Query/Problem/Bug/Suggestions Here");
+            Uri uri = Uri.parse(uriText);
+
+            send.setData(uri);
+            startActivity(Intent.createChooser(send, "Send Mail Via : "));
+
+        }
+
+        DrawerLayout drawer = findViewById(R.id.drawer_layout);
+        drawer.closeDrawer(GravityCompat.START);
+        return true;
+    }
+
+    private void doFirstRun() {
+        SharedPreferences settings = getSharedPreferences("FIRSTRUNTEXT2", MODE_PRIVATE);
+        if (settings.getBoolean("isFirstRunDialogBoxtext2", true)) {
+            SharedPreferences.Editor editor = settings.edit();
+            editor.putBoolean("isFirstRunDialogBoxtext2", false);
+            editor.commit();
+
+            android.app.AlertDialog.Builder builder = new android.app.AlertDialog.Builder(MainActivity.this);
+
+            builder.setIcon(R.drawable.ic_notifications_none_black_24dp);
+
+            builder.setTitle("Welcome !");
+            builder.setMessage("You Add Tasks, Notes With Different Category ");
+
+            builder.setCancelable(false);
+
+            builder.setPositiveButton("Tutorial", new DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(DialogInterface dialogInterface, int i) {
+                    showtipshowcase();
+                    dialogInterface.dismiss();
+                }
+            });
+            builder.setNeutralButton("GOT IT", new DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(DialogInterface dialogInterface, int i) {
+
+                    dialogInterface.dismiss();
+                }
+            });
+
+            android.app.AlertDialog dialog = builder.create();
+            dialog.show();
+
+
+
+
+        }
+    }
+
+    private void doFseRun() {
+        SharedPreferences settings = getSharedPreferences("FIRSTRUNTEXTnotif1", MODE_PRIVATE);
+        if (settings.getBoolean("isFirstRunDialogBoxtextnotif1", true)) {
+            SharedPreferences.Editor editor = settings.edit();
+            editor.putBoolean("isFirstRunDialogBoxtextnotif1", false);
+            editor.commit();
+
+           notifynotif();
+
+
+        }
+    }
+    private void showtipshowcase() {
+
+        new GuideView.Builder(this)
+                .setTitle("Add Tasks")
+                .setContentText("Click Here To Add Tasks/Notes")
+                .setGravity(Gravity.auto) //optional
+                .setDismissType(DismissType.outside) //optional - default DismissType.targetView
+                .setTargetView(view1)
+                .setContentTextSize(14)//optional
+                .setTitleTextSize(16)//optional
+                .build()
+                .show();
+
+
+    }
+}
